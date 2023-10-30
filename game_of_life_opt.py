@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib
 from matplotlib.animation import FuncAnimation
-from numba import jit
 
 
 class GameOfLife:
@@ -40,7 +39,6 @@ class GameOfLife:
                 lista.append(list(map(lambda e: float(e), line.replace('\n', '').split())))
         for i in range(len(lista)):
             self.matrix[int(lista[i][1])][int(lista[i][0])] = 1
-
 
     def count_cells(self, matrix, i, j):
         count = 0
@@ -126,7 +124,7 @@ class GameOfLife:
         plt.show()
 
 
-gra_w_zycie = GameOfLife(n=300, m=300, rules='23/3', backend='macosx')
+gra_w_zycie = GameOfLife(n=200, m=200, rules='23/3', backend='macosx')
 gra_w_zycie.load_file('data.dat')
 # gra_w_zycie.load_points(points_x=[100, 100, 101, 100, 99], points_y=[100, 99, 99, 101, 100])
 gra_w_zycie.core()
