@@ -71,8 +71,8 @@ class GameOfLife:
         return u
 
     def growth_func(self, u):
-        sigma = 0.138
-        mu = 0
+        sigma = 0.15
+        mu = 0.017
         l = abs(u - mu)
         k = 2 * (sigma ** 2)
         return 2 * np.exp(-(l ** 2) / k) - 1
