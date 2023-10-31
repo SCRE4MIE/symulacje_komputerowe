@@ -40,7 +40,6 @@ class GameOfLife:
     def create_c_inner_c_outer_lists(self):
         radius = self.radius
         i, j = radius - 1, radius - 1
-        matrix = np.zeros((radius * 2 - 1, radius * 2 - 1))
 
         i_l_outside = []
         j_l_outside = []
@@ -60,33 +59,6 @@ class GameOfLife:
         return i_l_outside, j_l_outside, i_l_inside, j_l_inside
 
 
-    # def count_cells(self, matrix, i, j, radius=8):
-    #     count_outer = 0
-    #     count_inner = 0
-    #     all_cells_outer = 184
-    #     all_cells_inner = 9
-    #
-    #     for i_p in range(i - radius, i + radius):
-    #         for j_p in range(j - radius, j + radius):
-    #             if (i_p - i) ** 2 + (j_p - j) ** 2 < radius ** 2:
-    #                 if ((i_p < i - 1) or (i_p > i + 1)) or ((j_p < i - 1) or (j_p > i + 1)):
-    #                     # K outer
-    #                     try:
-    #                         if matrix[i_p][j_p] == 1:
-    #                             count_outer += 1
-    #                     except:
-    #                         pass
-    #                 else:
-    #                     # K inner
-    #                     try:
-    #                         if matrix[i_p][j_p] == 1:
-    #                             count_inner += 1
-    #                     except:
-    #                         pass
-    #
-    #     u_o = count_outer / all_cells_outer
-    #     u_i = count_inner / all_cells_inner
-    #     return u_o, u_i
     def count_cells(self, matrix, i, j):
         count_outer = 0
         count_inner = 0
@@ -95,7 +67,7 @@ class GameOfLife:
 
         for el in range(len(self.i_l_outside)):
             try:
-                if matrix[i - self.i_l_outside[el]][j - self.j_l_outside[el]] == 1:
+                if matrix[i - self.i_l_outside[el]][j - self.j_l_outside[el]] != 0:
                     count_outer += 1
             except:
                 pass
@@ -159,13 +131,13 @@ class GameOfLife:
 
         self.animation = animation.FuncAnimation(fig, func=game_of_life_loop, frames=200, interval=10, cache_frame_data=False)
         # fig.canvas.mpl_connect('button_press_event', self.toggle_pause)
-        self.animation.save('lenia.gif')
-        # plt.show()
+        # self.animation.save('lenia.gif')
+        plt.show()
 
 
-gra_w_zycie = GameOfLife(n=300, m=300, radius=8, backend='macosx')
+gra_w_zycie = GameOfLife(n=200, m=200, radius=5, backend='macosx')
 # gra_w_zycie.load_file('data.dat')
-gra_w_zycie.load_points(points_x=[random.randint(100,199) for _ in range(10000)], points_y=[random.randint(100,199) for _ in range(10000)])
+gra_w_zycie.load_points(points_x=[random.randint(0,199) for _ in range(10000)], points_y=[random.randint(0,199) for _ in range(10000)])
 gra_w_zycie.core()
 
 # '1234/12' WOW!
