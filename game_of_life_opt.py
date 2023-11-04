@@ -1,3 +1,5 @@
+import random
+
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib
@@ -116,28 +118,32 @@ class GameOfLife:
             for i in range(self.matrix.shape[0]):
                 for j in range(self.matrix.shape[1]):
                     self.check_born_or_die(i, j)
-            print(time.process_time() - start)
+
             if self.switcher:
                 self.switcher = False
                 matrix = self.matrix
             else:
                 self.switcher = True
                 matrix = self.matrix_2
-
+            print(time.process_time() - start)
             im.set_array(matrix)
             plt.title(f'Rule: {self.rules_str}| Generation: {self.count_loop}| people: {np.count_nonzero(matrix)}')
             self.count_loop += 1
+            print(self.count_loop)
             return im,
 
-        self.animation = FuncAnimation(fig, func=game_of_life_loop, frames=60, interval=10, cache_frame_data=False)
+        self.animation = FuncAnimation(fig, func=game_of_life_loop, frames=30, interval=1, cache_frame_data=False)
         fig.canvas.mpl_connect('button_press_event', self.toggle_pause)
-        plt.show()
+        # plt.show()
+        self.animation.save('gof.gif')
 
 
-gra_w_zycie = GameOfLife(n=200, m=200, kernel_inner_radius=1, kernel_outer_radius=2, rules='23/3', backend='macosx')
+gra_w_zycie = GameOfLife(n=600, m=600, kernel_inner_radius=1, kernel_outer_radius=10, rules='23/3', backend='macosx')
 gra_w_zycie.load_file('data.dat')
 gra_w_zycie.load_points(points_x=[100, 100, 101, 100, 99], points_y=[100, 99, 99, 101, 100])
 # gra_w_zycie.load_points(points_x=[10, 11, 11, 12, 12], points_y=[10, 11, 12, 11, 10])
+gra_w_zycie.load_points(points_x=[random.randint(0, 599) for _ in range(1000)],
+                points_y=[random.randint(0, 599) for _ in range(1000)])
 gra_w_zycie.core()
 
 # '1234/12' WOW!
