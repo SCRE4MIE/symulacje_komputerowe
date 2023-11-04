@@ -1,22 +1,29 @@
+import copy
+import threading
+
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib
+from joblib import Parallel, cpu_count, delayed
 from matplotlib.animation import FuncAnimation
 import time
-import multiprocessing as mp
-from IPython.display import clear_output
+import multiprocessing
 
 
 class GameOfLife:
-    def __init__(self, n, m, iters, kernel_outer_radius, kernel_inner_radius, rules: str, backend='TkAgg'):
+    def __init__(self, n, m, kernel_outer_radius, kernel_inner_radius, rules: str, backend='TkAgg'):
         matplotlib.use(backend)
-        self.matrix = np.zeros((n, m))
-        self.matrix_2 = np.zeros((n, m))
-        self.switcher = True
-        self.iters = iters
+        # self.matrix = np.zeros((n, m))
+        # self.matrix_tmp = np.zeros((n, m))
+        self.matrix = np.frombuffer(multiprocessing.Array('i', n * m).get_obj(), dtype=np.int32).reshape(n, m)
+        self.matrix_tmp = np.frombuffer(multiprocessing.Array('i', n * m).get_obj(), dtype=np.int32).reshape(n, m)
+        self.n = n
+        self.m = m
 
         self.kernel = self.create_kernel(kernel_outer_radius, kernel_inner_radius)
         self.shape_kernel = len(self.kernel), len(self.kernel[0])
+        self.half_size_i_kernel = int(self.shape_kernel[0] / 2)
+        self.half_size_j_kernel = int(self.shape_kernel[1] / 2)
 
         self.rules_str = rules
         self.rules_born, self.rules_die = self.translate_rules()
@@ -64,85 +71,87 @@ class GameOfLife:
 
     def count_cells(self, matrix, i_c, j_c):
         count = 0
+
         for i_k in range(self.shape_kernel[0]):
             for j_k in range(self.shape_kernel[1]):
-                i_matrix_index = i_c - int(self.shape_kernel[0] / 2) + i_k
-                j_matrix_index = j_c - int(self.shape_kernel[1] / 2) + j_k
-                if (0 <= i_matrix_index < len(matrix)) and (0 <= j_matrix_index < len(matrix[0])):
-                    count += matrix[i_matrix_index][j_matrix_index] * self.kernel[i_k][j_k]
+                i_matrix_index = i_c - self.half_size_i_kernel + i_k
+                j_matrix_index = j_c - self.half_size_j_kernel + j_k
+                # if (0 <= i_matrix_index < self.n) and (0 <= j_matrix_index < self.m):
+                #     count += matrix[i_matrix_index][j_matrix_index] * self.kernel[i_k][j_k]
+                count += matrix[i_matrix_index % self.n][j_matrix_index % self.m] * self.kernel[i_k][j_k]
 
         return count
 
     def check_born_or_die(self, i, j):
 
-        if self.switcher:
-            matrix = self.matrix
-            matrix_2 = self.matrix_2
-        else:
-            matrix = self.matrix_2
-            matrix_2 = self.matrix
+        count = self.count_cells(matrix=self.matrix, i_c=i, j_c=j)
 
-        count = self.count_cells(matrix=matrix, i_c=i, j_c=j)
-
-        if matrix[i][j] == 0:  # born
+        if self.matrix[i][j] == 0:  # born
             if count in self.rules_born:
-                matrix_2[i][j] = 1
+                self.matrix_tmp[i][j] = 1
             else:
-                matrix_2[i][j] = 0
+                self.matrix_tmp[i][j] = 0
 
-        if matrix[i][j] == 1:  # die
+        if self.matrix[i][j] == 1:  # die
             if count not in self.rules_die:
-                matrix_2[i][j] = 0
+                self.matrix_tmp[i][j] = 0
             else:
-                matrix_2[i][j] = 1
+                self.matrix_tmp[i][j] = 1
 
-    def toggle_pause(self, *args, **kwargs):
-        if self.paused:
-            self.animation.resume()
-        else:
-            self.animation.pause()
-        self.paused = not self.paused
+    def task(self, start_i, end_i, start_j, end_j):
+        for i_o in range(start_i, end_i):
+            for j_o in range(start_j, end_j):
+                self.check_born_or_die(i_o, j_o)
 
-    def multiprocess(self, matrix):
-        num_processes = 4
-        chunk_size = int(matrix.shape[0] / num_processes)
-        pool = mp.Pool(processes=num_processes)
-        # results = pool.map(self.check_born_or_die(), chunks)
 
-    def core(self):
-
-        fig= plt.figure(figsize=(10, 8))
-        im = plt.imshow(self.matrix, cmap='gray', animated=True)
-        print(self.multiprocess(self.matrix))
-
-        for l in range(self.iters):
-            for i in range(self.matrix.shape[0]):
-                for j in range(self.matrix.shape[1]):
-                    self.check_born_or_die(i, j)
-
-            if self.switcher:
-                self.switcher = False
-                matrix = self.matrix
-            else:
-                self.switcher = True
-                matrix = self.matrix_2
-
-            plt.figure(figsize=(10, 10))
-            plt.matshow(matrix, cmap='Greys', fignum=1)
-
-            plt.title(f'Generation {l + 1}, people: {np.count_nonzero(self.matrix)}')
-            clear_output(wait=True)
-            plt.show()
+    def core(self, frame):
 
 
 
-gra_w_zycie = GameOfLife(n=200, m=200, iters=100, kernel_inner_radius=1, kernel_outer_radius=2, rules='23/3', backend='macosx')
-gra_w_zycie.load_file('data.dat')
-gra_w_zycie.load_points(points_x=[100, 100, 101, 100, 99], points_y=[100, 99, 99, 101, 100])
-# gra_w_zycie.load_points(points_x=[10, 11, 11, 12, 12], points_y=[10, 11, 12, 11, 10])
-gra_w_zycie.core()
 
-# '1234/12' WOW!
-# 12345/12
-# 234/345
-# 238/3 pulsar
+        start = time.process_time()
+
+        p1 = multiprocessing.Process(target=self.task, args=(0, int(self.n / 2), 0, int(self.m / 2)))
+        p2 = multiprocessing.Process(target=self.task, args=(0, int(self.n / 2), int(self.m / 2), self.m))
+        p3 = multiprocessing.Process(target=self.task, args=(int(self.n / 2), self.n, 0, int(self.m / 2)))
+        p4 = multiprocessing.Process(target=self.task, args=(int(self.n / 2), self.n, int(self.m / 2), self.m))
+        p1.start()
+        p2.start()
+        p3.start()
+        p4.start()
+        # p1.join()
+        # p2.join()
+        # p3.join()
+        # p4.join()
+
+        # self.task(0, int(self.n / 2), 0, int(self.m / 2))
+        # self.task(0, int(self.n / 2), int(self.m / 2), self.m)
+        # self.task(int(self.n / 2), self.n, 0, int(self.m / 2))
+        # self.task(int(self.n / 2), self.n, int(self.m / 2), self.m)
+
+        print(time.process_time() - start)
+        plt.matshow(self.matrix_tmp)
+        plt.show()
+        self.matrix = copy.deepcopy(self.matrix_tmp)
+        self.matrix_tmp = np.zeros((self.n, self.m))
+        im.set_array(self.matrix)
+        plt.title(f'Rule: {self.rules_str}| Generation: {self.count_loop}| people: {np.count_nonzero(self.matrix)}')
+        self.count_loop += 1
+        return im,
+
+
+
+
+
+
+
+if __name__ == '__main__':
+    gra_w_zycie = GameOfLife(n=200, m=200, kernel_inner_radius=1, kernel_outer_radius=2, rules='23/3', backend='macosx')
+    gra_w_zycie.load_file('data.dat')
+    gra_w_zycie.load_points(points_x=[100, 100, 101, 100, 99], points_y=[100, 99, 99, 101, 100])
+    # gra_w_zycie.load_points(points_x=[10, 11, 11, 12, 12], points_y=[10, 11, 12, 11, 10])
+    fig = plt.figure(figsize=(10, 8))
+    im = plt.imshow(gra_w_zycie.matrix, cmap='gray', animated=True)
+    anim=FuncAnimation(fig, func=gra_w_zycie.core, frames=60, interval=10, cache_frame_data=False)
+    plt.show()
+
